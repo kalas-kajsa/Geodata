@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Skattely, overblik</title>
+<meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+<link href="https://api.mapbox.com/mapbox-gl-js/v2.10.0/mapbox-gl.css" rel="stylesheet">
+<script src="https://api.mapbox.com/mapbox-gl-js/v2.10.0/mapbox-gl.js"></script>
+<style>
+    body { margin: 0; padding: 0; }
+    #map { position: absolute; top: 0; bottom: 0; width: 100%; }
+
+    .mapboxgl-popup {
+        max-width: none !important;
+        background-color: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+    }
+
+    .mapboxgl-popup-content {
+        width: 400px !important;
+        max-height: 500px;
+        overflow-y: auto;
+        background-color: #333 !important;
+        color: #fff !important;
+        border-radius: 8px !important;
+        padding: 10px !important;
+        box-sizing: border-box;
+        border: none !important;
+        box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.5) !important;
+    }
+
+    .mapboxgl-popup-anchor-bottom .mapboxgl-popup-tip,
+    .mapboxgl-popup-anchor-top .mapboxgl-popup-tip {
+        display: none !important;
+    }
+
+    .popup-image {
+        width: 100%;
+        height: 300px !important;
+        border-radius: 4px;
+        margin-bottom: 8px;
+    }
+
+    /* Legend styling */
+    .legend {
+        position: absolute;
+        bottom: 30px;
+        left: 10px;
+        background-color: rgba(255, 255, 255, 0.8);
+        padding: 10px;
+        border-radius: 8px;
+        font-family: Arial, sans-serif;
+        font-size: 12px;
+        color: #333;
+        box-shadow: 0px 0px 5px rgba(0, 0, 0, 0.5);
+    }
+    .legend h3 {
+        margin: 0 0 5px;
+        font-size: 14px;
+    }
+    .legend-item {
+        display: flex;
+        align-items: center;
+        margin-bottom: 5px;
+    }
+    .legend-color {
+        width: 15px;
+        height: 15px;
+        margin-right: 8px;
+        border-radius: 3px;
+    }
+</style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<!-- Legend for the Color Variable -->
+<div class="legend">
+    <h3>Antal virksomheder</h3>
+    <div class="legend-item">
+        <div class="legend-color" style="background-color: #ffffb2;"></div>
+        <span>0 - 10</span>
+    </div>
+    <div class="legend-item">
+        <div class="legend-color" style="background-color: #fd8d3c;"></div>
+        <span>11 - 100</span>
+    </div>
+    <div class="legend-item">
+        <div class="legend-color" style="background-color: #bd0026;"></div>
+        <span>100+</span>
+    </div>
+</div>
+
+<script>
+    mapboxgl.accessToken = 'pk.eyJ1IjoiZnJpa2pzYSIsImEiOiJjbTM0Z2xveWoxcjlnMmlzYW1xa284N2t5In0.szCCYDWKRdiIEiMdPAWnvQ';
+
+    const map = new mapboxgl.Map({
+        container: 'map',
+        style: 'mapbox://styles/mapbox/dark-v11',
+        center: [0, 20],
+        zoom: 1.5,
+        projection: 'globe'
+    });
+
+    map.on('style.load', () => {
+        map.addSource('points', {
+            type: 'geojson',
+            data: 'https://raw.githubusercontent.com/kalas-kajsa/Geodata/refs/heads/main/Points.1730988257721.geojson'
+        });
+
+        map.addLayer({
+            id: 'points-layer',
+            type: 'circle',
+            source: 'points',
+            paint: {
+                'circle-color': [
+                    'match',
+                    ['get', 'Color'],
+                    '0 - 10', '#ffffb2',
+                    '11 - 100', '#fd8d3c',
+                    '100+', '#bd0026',
+                    '#ccc' // Default color
+                ],
+                'circle-radius': [
+                    'match',
+                    ['get', 'Color'],
+                    '0 - 10', 5,
+                    '11 - 100', 15,
+                    '100+', 25,
+                    5 // Default size
+                ],
+                'circle-opacity': 0.7
+            }
+        });
+
+        map.addLayer({
+            id: 'country-labels',
+            type: 'symbol',
+            source: 'points',
+            layout: {
+                'text-field': ['get', 'Country'],
+                'text-size': 12,
+                'text-font': ['Open Sans Semibold', 'Arial Unicode MS Bold'],
+                'text-offset': [0, 1.2],
+                'text-anchor': 'top'
+            },
+            paint: {
+                'text-color': '#ffffff',
+                'text-halo-color': '#000000',
+                'text-halo-width': 1
+            }
+        });
+
+        map.on('click', 'points-layer', (e) => {
+            const coordinates = e.features[0].geometry.coordinates.slice();
+            const description = e.features[0].properties["For panel"];
+            const imageUrl = e.features[0].properties["Image"];
+            const countryName = e.features[0].properties["Country"];
+
+            let popupContent = `<div class="popup-content">`;
+            if (imageUrl) {
+                popupContent += `<img src="${imageUrl}" class="popup-image" alt="Image">`;
+            }
+            popupContent += `<h4>${countryName}</h4><p>${description}</p></div>`;
+
+            new mapboxgl.Popup()
+                .setLngLat(coordinates)
+                .setHTML(popupContent)
+                .addTo(map);
+        });
+
+        map.on('mouseenter', 'points-layer', () => {
+            map.getCanvas().style.cursor = 'pointer';
+        });
+
+        map.on('mouseleave', 'points-layer', () => {
+            map.getCanvas().style.cursor = '';
+        });
+    });
+</script>
+
+</body>
+</html>
